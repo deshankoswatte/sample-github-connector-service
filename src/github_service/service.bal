@@ -1,35 +1,48 @@
 import ballerina/http;
-import ballerina/io;
 
-http:Client clientEP = new ("https://api.github.com");
+http:Client gitHubAPIEndpoint = new (GITHUB_API_URL);
+listener http:Listener servicesEndPoint = new (SERVICES_PORT);
 
 @http:ServiceConfig {
-    basePath: "/github",
+    basePath: BASEPATH,
     cors: {
         allowOrigins: ["*"]
     }
 }
 
-service githubService on new http:Listener(9090) {
+service githubService on servicesEndPoint {
 
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/issues/{repositoryOwner}/{repository}"
+        path: "/issues/{issueNumber}"
     }
-    resource function retrieveAllIssuesFromRepository(http:Caller caller, http:Request req, string repositoryOwner, string repository) {
+    resource function retrieveAnIssueFromRepository(http:Caller caller, http:Request request, string issueNumber) {
 
+        http:Request callBackRequest = new;
+        callBackRequest.addHeader("Authorization", ACCESS_TOKEN);
         http:Response response = new;
-        string url = "/repos/" + repositoryOwner + "/" + repository + "/issues?state=all";
-        http:Response | error githubResponse = clientEP->get(<@untained>url);
 
-        json | error jsonPayload = checkGithubResponse(githubResponse);
+        string url = "/repos/" + ORGANIZATION_NAME + "/" + REPOSITORY_NAME + "/issues/" + issueNumber;
+        http:Response | error gitHubResponse = gitHubAPIEndpoint->get(<@untained>url, callBackRequest);
 
-        if (jsonPayload is json) {
-            response.statusCode = 200;
-            response.setJsonPayload(<@untained>jsonPayload);
+        if (gitHubResponse is http:Response) {
+            if (gitHubResponse.statusCode == http:STATUS_OK) {
+                json | error jsonPayload = gitHubResponse.getJsonPayload();
+                if (jsonPayload is json) {
+                    response.statusCode = http:STATUS_OK;
+                    response.setJsonPayload(<@untained>jsonPayload);
+                } else {
+                    response.statusCode = http:STATUS_BAD_REQUEST;
+                    response.setPayload(<@untained>jsonPayload.reason());
+                }
+            } else {
+                response.statusCode = gitHubResponse.statusCode;
+                response.setPayload("The github response status code was not at the acceptable status code of 200.");
+            }
+
         } else {
-            response.statusCode = 500;
-            response.setPayload(<@untained>jsonPayload.reason());
+            response.statusCode = http:STATUS_BAD_REQUEST;
+            response.setPayload(gitHubResponse.reason());
         }
 
         error? respond = caller->respond(response);
@@ -37,35 +50,35 @@ service githubService on new http:Listener(9090) {
 
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/repositories/{repositoryOwner}"
+        path: "/issues"
     }
-    resource function retrieveAllRepositories(http:Caller caller, http:Request req, string repositoryOwner) {
+    resource function retrieveAllIssuesFromRepository(http:Caller caller, http:Request request) {
 
+        http:Request callBackRequest = new;
+        callBackRequest.addHeader("Authorization", ACCESS_TOKEN);
         http:Response response = new;
-        string url = "/users/" + repositoryOwner + "/repos";
-        http:Response | error githubResponse = clientEP->get(<@untained>url);
 
-        if (githubResponse is http:Response) {
+        string url = "/repos/" + ORGANIZATION_NAME + "/" + REPOSITORY_NAME + "/issues?state=all";
+        http:Response | error gitHubResponse = gitHubAPIEndpoint->get(<@untained>url, callBackRequest);
 
-            json | error jsonPayload = githubResponse.getJsonPayload();
-
-            if (jsonPayload is json[]) {
-
-                json | error formattedPayload = convertRepositoriesToJSONFormat(jsonPayload);
-                if (formattedPayload is json) {
-                    response.statusCode = 200;
-                    response.setJsonPayload(<@untained>formattedPayload);
+        if (gitHubResponse is http:Response) {
+            if (gitHubResponse.statusCode == http:STATUS_OK) {
+                json | error jsonPayload = gitHubResponse.getJsonPayload();
+                if (jsonPayload is json) {
+                    response.statusCode = http:STATUS_OK;
+                    response.setJsonPayload(<@untained>jsonPayload);
                 } else {
-                    response.statusCode = 500;
-                    response.setPayload(<@untained>formattedPayload.reason());
+                    response.statusCode = http:STATUS_BAD_REQUEST;
+                    response.setPayload(<@untained>jsonPayload.reason());
                 }
-            } else if (jsonPayload is error) {
-                response.statusCode = 500;
-                response.setPayload(<@untained>jsonPayload.reason());
+            } else {
+                response.statusCode = gitHubResponse.statusCode;
+                response.setPayload("The github response status code was not at the acceptable status code of 200.");
             }
+
         } else {
-            response.statusCode = 500;
-            response.setPayload(githubResponse.reason());
+            response.statusCode = http:STATUS_BAD_REQUEST;
+            response.setPayload(gitHubResponse.reason());
         }
 
         error? respond = caller->respond(response);
@@ -73,58 +86,73 @@ service githubService on new http:Listener(9090) {
 
     @http:ResourceConfig {
         methods: ["POST"],
-        path: "/repositories/{repositoryOwner}/{repository}"
+        path: "/issues/postIssue"
     }
-    resource function postAnIssue(http:Caller caller, http:Request req, string repositoryOwner, string repository) {
+    resource function postAnIssueInARepository(http:Caller caller, http:Request request) {
 
+        http:Request callBackRequest = new;
+        callBackRequest.addHeader("Authorization", ACCESS_TOKEN);
         http:Response response = new;
-        string url = "users/" + repositoryOwner + "/repos";
-        http:Response | error githubResponse = clientEP->get(<@untained>url);
 
-        json | error jsonPayload = checkGithubResponse(githubResponse);
+        string url = "/repos/" + ORGANIZATION_NAME + "/" + REPOSITORY_NAME + "/issues";
+        json | error receivedRequestPayload = request.getJsonPayload();
 
-        if (jsonPayload is json) {
-            response.statusCode = 200;
-            response.setJsonPayload(<@untained>jsonPayload);
+        if (receivedRequestPayload is json) {
+            callBackRequest.setPayload(<@untained>receivedRequestPayload);
+            http:Response | error gitHubResponse = gitHubAPIEndpoint->post(<@untained>url, callBackRequest);
+            if (gitHubResponse is http:Response) {
+                if (gitHubResponse.statusCode == http:STATUS_CREATED) {
+                    response.statusCode = http:STATUS_CREATED;
+                    response.setPayload("Issue created successfully.");
+                } else {
+                    response.statusCode = gitHubResponse.statusCode;
+                    response.setPayload("The github response status code was not at the acceptable status code of 201.");
+                }
+            } else {
+                response.statusCode = http:STATUS_BAD_REQUEST;
+                response.setPayload(gitHubResponse.reason());
+            }
         } else {
-            response.statusCode = 500;
-            response.setPayload(<@untained>jsonPayload.reason());
+            response.statusCode = http:STATUS_BAD_REQUEST;
+            response.setPayload(<@untained>receivedRequestPayload.reason());
         }
 
         error? respond = caller->respond(response);
     }
-}
 
-function checkGithubResponse(http:Response | error response) returns @tainted json | error {
+    @http:ResourceConfig {
+        methods: ["PATCH"],
+        path: "/issues/editIssue/{issueNumber}"
+    }
+    resource function editAnIssueInARepository(http:Caller caller, http:Request request, string issueNumber) {
 
-    if (response is http:Response) {
-        json | error jsonPayload = response.getJsonPayload();
+        http:Request callBackRequest = new;
+        callBackRequest.addHeader("Authorization", ACCESS_TOKEN);
+        http:Response response = new;
 
-        if (jsonPayload is error) {
-            return error(jsonPayload.reason());
+        string url = "/repos/" + ORGANIZATION_NAME + "/" + REPOSITORY_NAME + "/issues/" + issueNumber;
+        json | error receivedRequestPayload = request.getJsonPayload();
+
+        if (receivedRequestPayload is json) {
+            callBackRequest.setJsonPayload(<@untained>receivedRequestPayload);
+            http:Response | error gitHubResponse = gitHubAPIEndpoint->patch(<@untained>url, callBackRequest);
+            if (gitHubResponse is http:Response) {
+                if (gitHubResponse.statusCode == http:STATUS_OK) {
+                    response.statusCode = http:STATUS_OK;
+                    response.setPayload("Issue updated successfully.");
+                } else {
+                    response.statusCode = gitHubResponse.statusCode;
+                    response.setPayload("The github response status code was not at the acceptable status code of 200.");
+                }
+            } else {
+                response.statusCode = http:STATUS_BAD_REQUEST;
+                response.setPayload(gitHubResponse.reason());
+            }
         } else {
-            return jsonPayload;
+            response.statusCode = http:STATUS_BAD_REQUEST;
+            response.setPayload(<@untained>receivedRequestPayload.reason());
         }
-    } else {
-        return error(response.reason());
+
+        error? respond = caller->respond(response);
     }
-}
-
-function convertRepositoriesToJSONFormat(json[] repositoriesList) returns @tainted json | error {
-
-    string stringRepositories = "[ ";
-
-    foreach json repository in repositoriesList {
-        map<json> repoDetails = <map<json>>repository;
-
-        json JSON = {"id": repoDetails.id.toString(), "name": repoDetails.name.toString(), "description": repoDetails.description.toString()};
-        stringRepositories = stringRepositories + JSON.toJsonString() + ", ";
-    }
-    stringRepositories = stringRepositories.substring(0, stringRepositories.length() - 2);
-    stringRepositories = stringRepositories + " ]";
-
-    io:StringReader stringReader = new (stringRepositories, encoding = "UTF-8");
-    json | error jsonRepositories = stringReader.readJson();
-
-    return jsonRepositories;
 }
