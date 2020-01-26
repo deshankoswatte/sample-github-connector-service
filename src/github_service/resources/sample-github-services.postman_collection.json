@@ -1,0 +1,126 @@
+{
+	"info": {
+		"_postman_id": "55fd6db3-0a7f-4489-b2da-13ea8002bc64",
+		"name": "sample-github-services",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "GET Issue",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:9090/github-services/issues/1",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"github-services",
+						"issues",
+						"1"
+					]
+				},
+				"description": "Get a specific issue from a repository by providing the issue number."
+			},
+			"response": []
+		},
+		{
+			"name": "GET All Issues",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:9090/github-services/issues",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"github-services",
+						"issues"
+					]
+				},
+				"description": "Retrieve all the issues related to a specific repository."
+			},
+			"response": []
+		},
+		{
+			"name": "POST Issue",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"Testing github services post issue.\",\n  \"body\": \"Test post issue.\",\n  \"state\": \"open\",\n  \"labels\": [\n    \"bug\"\n  ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9090/github-services/issues/postIssue",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"github-services",
+						"issues",
+						"postIssue"
+					]
+				},
+				"description": "Post an issue in a github repository."
+			},
+			"response": []
+		},
+		{
+			"name": "PATCH Issue",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"Testing github services edit issue.\",\n  \"body\": \"Test edit issue.\",\n  \"state\": \"closed\",\n  \"labels\": [\n    \"bug\"\n  ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:9090/github-services/issues/editIssue/3",
+					"host": [
+						"localhost"
+					],
+					"port": "9090",
+					"path": [
+						"github-services",
+						"issues",
+						"editIssue",
+						"3"
+					]
+				},
+				"description": "Edit an issue in a specific repository with the help of the issue number provided."
+			},
+			"response": []
+		}
+	],
+	"protocolProfileBehavior": {}
+}
